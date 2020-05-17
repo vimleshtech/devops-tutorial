@@ -1,0 +1,36 @@
+---Install Ansbile ---
+$sudo apt-get install software-properties-common
+$sudo apt-add-repository ppa:ansible/ansible
+$sudo apt-get update
+$sudo apt-get install ansible
+
+$ ansible -m ping all 
+$ ansible -m ping all --ask-pass
+
+$ ansible all --module-name command --args "uptime"
+$ ansible all -m command -a "uptime"
+$ ansible all -m command -a "/bin/date"
+
+--see list of hosts 
+$ansible-playbook playbook.yml --list-hosts
+
+--Check mode is just a simulation, and if you have steps that use conditionals that depend on the results of prior commands
+$ansible-playbook foo.yml --check
+
+--syntax check
+$ ansible-playbook --syntax-check site.yml 
+
+--list of tasks check 
+$ ansible-playbook --list-tasks site.yml  
+
+--play playbook 
+$ ansible-playbook site.yml  
+
+--play playbook 
+$ sudo ansible-playbook site.yml  
+
+--play playbook 
+$ ansible-playbook site.yml  --ask-pass
+
+--play playbook 
+$ sudo ansible-playbook site.yml  --ask-pass

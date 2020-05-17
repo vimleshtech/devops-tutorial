@@ -1,0 +1,431 @@
+By installing Chef Workstation, you’ll get knife command. Ensure you have installed Chef Server and Configured Chef Workstation before proceeding with this guide. Once all is set and ready, we can start exploring Knife setup and 
+
+
+Introduction to knife
+
+Knife is a command-line tool that provides an interface between your workstation and the Chef server. The knife enables you to upload your cookbooks to the Chef server and interact with nodes, the servers that you manage.
+
+
+
+knife enables you to manage:
+
+Nodes – Servers managed by Chef
+Cookbooks and recipes
+Roles, Environments, and Data Bags
+Resources within various cloud environments
+The installation of the chef-client onto nodes
+Searching for indexed data on the Chef server
+knife requires two files to authenticate with the Chef server.
+
+An RSA private key:
+
+Every request to the Chef server is authenticated through an RSA public key pair.
+The Chef server holds the public part; you hold the private part.
+
+2. A knife configuration file
+
+--
+The configuration file is typically named knife.rb.
+This configuration file contains information such as the Chef server’s URL, the location of your RSA private key, and the default location of your cookbooks.
+Both of these files are typically located in a directory named .chef
+By default, every time knife runs, it looks in the current working directory for the 
+.chef directory
+If the .chef directory does not exist, knife searches up the directory tree for a .chef directory
+
+Configure Knife environment ( On Workstation Machine)
+In this section, we’ll configure Knife to be able to communicate with the Chef Server.
+
+Step 1: Generate chef repository directory
+
+Start by generating a Chef repository on your Workstation machine
+
+
+$chef generate repo chef-repo
+$cd chef-repo
+
+The chef repo directory should have
+
+$ ls -1
+chefignore
+cookbooks
+data_bags
+environments
+LICENSE
+README.md
+roles
+
+Step 2: Configure Git
+The ChefDK adds the Git component to your workstation and initializes a Git repository in the directory used to generate the Chef repo.
+
+The only work you have is to configure Git to add your username and email and to add and commit any new files generated.
+
+$git config --global user.name gitusername
+$git config --global user.email useremail@example.com
+
+
+Step 3: Add the .chef directory to the .gitignore file
+
+You need to tell Git to ignore tracking of all files in .chef directory
+
+$echo ".chef" > .gitignore
+
+Add files and commit
+
+$git add .
+$git commit -m "initial commit"
+
+
+Step 4: Configure Knife
+Create a .chefdirectory inside the folderchef-repo.
+
+$cd chef-repo
+$mkdir .chef
+$cd .chef
+
+
+The .chef directory should contain two files:
+
+Your knife configuration file, knife.rb
+Your RSA private key
+
+
+
+---
+Download your RSA Private key from the Chef Server – This was generated during the installation of Chef server
+
+---
+
+ scp chef-server:/home/chefadmin.pem .
+Replace chef-server with your Chef Server address, and /home/chefadmin.pem with the location of your Private Key.
+
+Create knife.rb file
+
+$ vim knife.rb
+Add the content similar to one below
+==========================================
+
+current_dir = File.dirname(__FILE__)
+log_level :info
+log_location STDOUT
+node_name "chefadmin"
+client_key "#{current_dir}/chefadmin.pem"
+chef_server_url "https://chef-server/organizations/mycompany"
+cookbook_path ["#{current_dir}/../cookbooks"]
+
+
+
+mycompany should match the name of your Organization as created on the Chef server
+chef-server is the domain name of your Chef Server – resolvable on the Workstation machine
+chefadmin should be the username that was created on the chef server
+You can also use Organization Validator, but first download validator Private Key.
+
+$ scp chef-server:/home/mycompany-validator.pem .
+Then configure knife:
+
+current_dir = File.dirname(__FILE__)
+log_level :info
+log_location STDOUT
+node_name 'chefadmin'
+client_key "#{current_dir}/chefadmin.pem"
+validation_client_name 'mycompany-validator'
+validation_key "#{current_dir}/mycompany-validator.pem"
+chef_server_url "https://chef-server/organizations/mycompany"
+cookbook_path ["#{current_dir}/../cookbooks"]
+Fetch the SSL certificate from your Chef server.
+
+
+---------------------------------
+$ knife ssl fetch
+
+Validate the downloaded SSL certificate
+
+$ knife ssl check
+Connecting to host chef-server:443
+Successfully verified certificates from `chef-server'
+
+$ file trusted_certs/chef-server.crt
+trusted_certs/chef-server.crt: PEM certificate
+Confirm that knife.rb is set up correctly by running the client list:
+
+$ knife client list
+This command should output the validator name.
+
+Write a test Chef Cookbook
+In this section, we will create a simple cookbook to install and configure the Apache web server with a Hello Chef World Web Page.
+
+Step 1: Generate cookbook
+Generate a cookbook using the command syntax:
+
+chef generate cookbook COOKBOOK_PATH/COOKBOOK_NAME (options)
+As an example, let’s name our cookbook iapache_server
+
+$ cd chef-repo
+$ chef generate cookbook  cookbooks/install_apache
+
+Generating cookbook apache_server
+- Ensuring correct cookbook file content
+- Ensuring delivery configuration
+- Ensuring correct delivery build cookbook content
+
+Your cookbook is ready. Type `cd cookbooks/install_apache` to enter it.
+
+There are several commands you can run to get started locally developing and testing your cookbook.
+Type `delivery local --help` to see a full list.
+
+Why not start by writing a test? Tests for the default recipe are stored at:
+
+test/integration/default/default_test.rb
+
+If you'd prefer to dive right in, the default recipe can be found at:
+
+recipes/default.rb
+Step 2: Generate HTML index page template
+A cookbook template is an Embedded Ruby (ERB) template that is used to dynamically generate static text files. Generate index.html template that will be copied over to Apache Server
+
+-------------------------------------
+$ cd cookbooks
+$ chef generate template install_apache index.html
+
+---
+Recipe: code_generator::template
+  * directory[./install_apache/templates] action create
+    - create new directory ./install_apache/templates
+  * template[./install_apache/templates/index.html.erb] action create
+    -  wget ./install_apache/templates/index
+    -  install ./install_apache/templates/index.html
+    -  install ./install_apache/templates/index.html
+    (diff output suppressed by config)
+Edit the file index.html.erb
+---
+
+
+Recipe: code_generator::template
+  * directory[./install_apache/templates] action create
+    - create new directory ./install_apache/templates
+  * template[./install_apache/templates/index.html.erb] action create
+    - create new file ./install_apache/templates/index.html.erb
+    - update content in file ./install_apache/templates/index.html.erb from none to e3b0c4
+    (diff output suppressed by config)
+Edit the file index.html.erb
+
+$ vim install_apache/templates/index.html.erb
+Here is a sample
+
+<html>
+  <body>
+    <h1>Hello Chef World from <%= node['fqdn'] %></h1>
+  </body>
+</html>
+The <%= %> syntax enables you to provide placeholders in your template file. Placeholders are replaced with their values when chef-client runs
+
+The attribute node['fqdn'] a fully qualified domain name for a node. This is used as the name of a node unless otherwise set.
+
+Step 3: Create a Recipe for Apache
+Now create an Apache web server recipe which has resource definitions to:
+
+Install basic system packages – vim, bash-completion, curl & wget
+Install Apache web server package – httpd for CentOS/RHEL/Fedora and apache2 for Debian family
+Start Apache service and set it to start on boot
+Copy index.html.erb template to /var/www/html/index.html
+Here is the complete recipe file install_apache/recipes/default.rb
+
+-----------------------------------------------
+#
+# Cookbook:: install_apache
+# Recipe:: default
+#
+# Copyright:: 2018, The Authors, All Rights Reserved.
+
+# Install basic packages
+
+package 'Install basic packages' do
+  package_name %w(vim wget curl bash-completion)
+end
+
+
+# Install Apache web server
+package 'Install Apache web server' do
+  case node[:platform]
+  when 'redhat', 'centos', 'fedora'
+    package_name 'httpd'
+  when 'ubuntu', 'debian'
+    package_name 'apache2'
+  end
+end
+
+---------------------------------------
+# Start and enable the service
+
+service 'Start and enable apache service' do
+  case node[:platform]
+  when 'redhat', 'centos', 'fedora'
+    service_name 'httpd'
+  when 'ubuntu', 'debian'
+    service_name 'apache2'
+  end
+  action [:enable, :start]
+end
+
+# Copy apache template
+
+template '/var/www/html/index.html' do
+  source 'index.html.erb'
+  mode '0644'
+  case node[:platform]
+  when 'redhat', 'centos', 'fedora', 'scientific'
+    owner 'apache'
+    group 'apache'
+  when node[:platform]
+    owner 'www-data'
+    group 'www-data'
+  end
+end
+Also, edit your metadata file to specify cookbook version and Git repository URL for the same.
+
+vim install_apache/metadata.rb
+Mine has the following contents:
+
+################################
+name 'install_apache'
+maintainer 'Josphat Mutai'
+maintainer_email 'jmutai@computingforgeeks.com'
+license 'All Rights Reserved'
+description 'Installs/Configures install_apache'
+long_description 'Installs/Configures Apache Web Server'
+version '0.1.0'
+chef_version '>= 13.0'
+
+# The `issues_url` points to the location where issues for this cookbook are
+# tracked.  A `View Issues` link will be displayed on this cookbook's page when
+# uploaded to a Supermarket.
+#
+# issues_url 'https://github.com/<insert_org_here>/install_apache/issues'
+
+# The `source_url` points to the development repository for this cookbook.  A
+# `View Source` link will be displayed on this cookbook's page when uploaded to
+# a Supermarket.
+#
+# source_url 'https://github.com/<insert_org_here>/install_apache'
+Step 4: Upload Cookbook to Chef Server
+We have our test cookbook ready to be uploaded to Chef Server.
+
+$ knife cookbook upload install_apache
+Uploading install_apache [0.1.0]
+Uploaded 1 cookbook.
+Confirm by listing cookbooks on the Chef Server
+
+$ knife cookbook list
+chef-client      11.0.1
+cron             6.2.1
+install_apache   0.1.0
+logrotate        2.2.0
+Bootstrapping a Node
+The knife bootstrap is the command you use to bootstrap a node. When using this command, you specify arguments depending on how you would normally connect to your node over SSH.
+
+You can connect to the Node via:
+
+Key-based authentication
+Password authentication
+Key-based authentication is typically recommended over password authentication because it is more secure, but you can bootstrap your node using either method. In either method, the --node-name argument uniquely identifies the node with the Chef server and its value can be whatever you want.
+
+General options used with knife bootstrap command
+
+--ssh-user
+--sudo
+--node-name
+--run-list
+Options specific to key-based authentication
+
+--identity-file
+Options specific to password authentication
+
+--ssh-password
+--use-sudo-password
+Bootstrap a Node using Password authentication
+The command syntax is:
+
+$ knife bootstrap ADDRESS --ssh-user USER --sudo --node-name nodename --run-list 'recipe[recipe-name]'
+Separate multiple recipes with a comma
+
+'recipe[nginx],recipe[php-fpm],recipe[haproxy]'
+For our example case, we’ll use:
+
+$ knife bootstrap 192.168.18.9 -x vagrant --sudo -P 'vagrant' -N  centos-01 -r 'recipe[install_apache]'
+Replace:
+
+ADDRESS with your remote node’s external address,
+USER with your username
+centos-01 with your Node name
+install_apache with cookbook name
+To use the root user
+
+$ knife bootstrap 192.168.18.11 -x root  -P 'password' -N  centos-01 \
+-r 'recipe[install_apache]'
+If you get an error message like ERROR: Net::SSH::HostKeyMismatch: fingerprint ..does not match for "IP", you may need to remove the offending key from your ~/.ssh/configusing:
+
+$ ssh-keygen -R IPADDRESS
+Or bootstrap with the --no-host-key-verify option (not recommended since less secure)
+
+$ knife bootstrap IPADDRESS --no-host-key-verify <OPTIONS>
+To Bootstrap using Key authentication
+
+$ knife bootstrap 192.168.18.9 -x vagrant --sudo  --identity-file ~/.ssh/private_key \
+-N  centos-01 -r 'recipe[install_apache]'
+Knife Node Bootstrap will:
+
+Login to node
+Install chef-client
+Configure chef-client
+Run chef-client
+
+
+
+
+To confirm the result, check if your node was associated with your Chef server.
+
+$ knife node list
+centos-01
+You can use the commandknife node show to view data about your node.
+
+$ knife node show centos-01
+Node Name:   centos-01
+Environment: _default
+FQDN:        cent-01
+IP:          192.168.121.136
+Run List:    recipe[install_apache]
+Roles:       
+Recipes:     install_apache, install_apache::default
+Platform:    centos 7.5.1804
+Tags:
+Open the Node IP address on your Browser to see if our web page is working
+
+
+--------------
+Update your node’s configuration
+The command knife ssh enables you to update your node’s configuration when your cookbook changes. To update your node using password authentication with attributes
+
+knife ssh 'name:nodename' 'sudo chef-client' --ssh-user USER --ssh-password 'PASSWORD' --attribute ipaddress
+Delete Node data
+Chef makes a distinction between the nodes that are being managed and the clients that are authorized to make API calls to the Chef server. Delete Node data by running:
+
+knife node delete nodename --yes
+knife client delete nodename --yes
+The knife node delete removes the node’s metadata from the Chef server and knife client delete  deletes the entry (including the public part of the RSA key pair) from the Chef server’s API client list.
+
+Delete Chef Cookbook/roles and RSA private key
+To delete your cookbook from the Chef server
+
+knife cookbook delete cookbookname --all --yes
+If you omit the --all argument, you’ll be prompted to select which version to delete
+
+To delete the role from the Chef server
+
+$ knife role delete myrole --yes
+Delete the RSA private key from your node
+
+During the bootstrap process, an RSA private key is generated on your node to enable your node to make API calls to the Chef server. This key is saved to /etc/chef/client.pem on Linux systems
+
+If you plan to bootstrap your node a second time, for example, to practice the process, you’ll need to log in to your node and delete the RSA private key file, like this
+
+$ sudo rm /etc/chef/client.pem
+

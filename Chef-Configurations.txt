@@ -1,0 +1,186 @@
+Step 1: Update Machine and set hostname
+
+$sudo apt update
+$sudo apt install curl wget
+
+Set server hostname
+
+$sudo hostnamectl set-hostname chef-server.example.com
+
+
+If you have an active DNS server, set the A record accordingly. For installations without DNSserver, set the record on /etc/hosts file
+
+	192.168.18.39 chef-server.example.com
+
+
+Step 2: Set AppArmor to Complaining or disabled mode
+
+Chef does not have a profile for running AppArmor so you’ve to set it to the Complaining mode or disabled.
+Check if AppArmor is enabled:
+
+$ sudo apparmor_status
+
+
+
+If the response is not “0 processes are in enforce mode” or “0 profiles are in enforce mode.”, set it to Complaining or disabled mode
+To set AppArmor to Complaining mode, run:
+
+$sudo aa-complain /etc/apparmor.d/*
+
+To disable AppArmor entirely, run:
+
+$sudo invoke-rc.d apparmor kill
+$sudo update-rc.d -f apparmor remove
+
+Recheck the status:
+
+$sudo apparmor_status
+
+
+
+Step 3: Configure Local Mail Relay
+The Chef server uses email to send notifications for various events:
+
+Password resets
+User invitations
+Failover notifications
+Failed job notifications
+
+
+Step 4: Configure NTP
+
+The Chef server is particularly sensitive to clock drift and it requires that the systems on which it is running be connected to Network Time Protocol (NTP).
+$sudo apt install ntp
+
+You can optionally edit /etc/ntp.conf to add NTP servers close to you
+
+To restrict access to NTP server, e.g from your Chef client nodes, set like below
+
+ restrict 192.168.18.0 mask 255.255.255.0 nomodify notrap
+
+
+
+
+Restart ntp service after making the change
+
+sudo systemctl restart ntp
+If you have UFW firewall enabled, don’t forget to allow ntp port
+
+$sudo ufw allow ntp
+$Show ntp status
+
+$sudo ntpq -p
+On Chef clients, install ntp and set NTP server to Chef server IP address
+
+$sudo apt install ntp
+$sudo vim /etc/ntp.conf
+
+Uncomment NTP pool server lines and specify Chef server IP address
+
+#pool 0.ubuntu.pool.ntp.org iburst
+#pool 1.ubuntu.pool.ntp.org iburst
+#pool 2.ubuntu.pool.ntp.org iburst
+#pool 3.ubuntu.pool.ntp.org iburst
+
+$server  192.168.18.39
+
+
+Step 5: Download and install Chef server package
+
+As of this writing, the recent release is version 12.18.14. This is the package we will download and install
+
+$VERSION="12.18.14"
+$wget https://packages.chef.io/files/stable/chef-server/${VERSION}/ubuntu/18.04/chef-server-core_${VERSION}-1_amd64.deb
+
+
+Once the download is complete, install the package using dpkg command
+
+$sudo dpkg -i chef-server-core_${VERSION}-1_amd64.deb
+
+
+Sample status
+
+$sudo dpkg -i chef-server-core_${VERSION}-1_amd64.deb
+
+
+Wait for the installation to complete then configure Chef Server
+
+$sudo chef-server-ctl reconfigure
+
+This step may take a few minutes to complete since many services are configured.
+
+
+
+
+--Create an administrator account
+
+sudo chef-server-ctl user-create USER_NAME FIRST_NAME LAST_NAME EMAIL 'PASSWORD' --filename FILE_NAME
+
+An RSA private key is generated automatically.
+This is the user’s private key and should be saved to a safe location.
+The option--filename will save the RSA private key to the specified absolute path.
+Example:
+
+$sudo chef-server-ctl user-create chefadmin Chef Admin \
+chefadmin@example.co 'StrongPassword' \
+--filename /home/chefadmin.pem
+
+
+
+Also, create an organization. The syntax is:
+
+$sudo chef-server-ctl org-create short_name 'full_organization_name' --association_user user_name --filename ORGANIZATION-validator.pem
+
+
+
+The name must begin with a lower-case letter or digit,
+The full name must begin with a non-white space character
+The --association_user option will associate the user_name with the admins security group on the Chef server.
+An RSA private key is generated automatically. This is the chef-validator key and should be saved to a safe location.
+The --filename option will save the RSA private key to the specified absolute path.
+See example below
+
+$chef-server-ctl org-create mycompany 'Company X, Inc.' \
+--association_user chefadmin \
+--filename /home/mycompany-validator.pem
+Generated keys should be available on /home directory
+
+# ls /home/
+$chefadmin.pem  mycompany-validator.pem
+
+
+---manage server ----
+Install Chef Manage
+Chef Manage is a premium add-on that provides a graphical user interface for managing common Chef server tasks. It’s free for up to 25 nodes.
+
+Let’s install the management console
+
+sudo chef-server-ctl install chef-manage 
+sudo chef-server-ctl reconfigure 
+sudo chef-manage-ctl reconfigure
+You can also install Chef Manage from a .deb package
+
+VER="2.5.16"
+wget https://packages.chef.io/files/stable/chef-manage/${VER}/ubuntu/16.04/chef-manage_${VER}-1_amd64.deb
+sudo dpkg -i chef-manage_${VER}-1_amd64.deb
+sudo chef-manage-ctl reconfigure
+
+
+All Chef Server services will run under the username/group opscode. The username for PostgreSQL is opscode-pgsql. Additional packages can be installed from https://packages.chef.io/
+
+
+
+If you wish to use or already using UFW firewall, open ports 80 & 443 by running the commands below
+
+sudo ufw allow proto tcp from any to any port 80,443
+You should be able to access the Chef web admin dashboard on https://serverip/login
+
+
+
+
+
+
+
+
+
+

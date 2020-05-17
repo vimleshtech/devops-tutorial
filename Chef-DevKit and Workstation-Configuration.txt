@@ -1,0 +1,53 @@
+There are two ways to install Chef Development Kit on Ubuntu 18.04:
+
+Install Chef DK using omnitruck setup script
+Install Chef Development Kit from Debian package
+Install Chef DK using the setup script
+This is the easiest and quickest method to install Chef Development Kit on Ubuntu 18.04 server. Open your terminal and run the commands below as root user:
+
+curl https://omnitruck.chef.io/install.sh | sudo bash -s -- -P chefdk -c stable
+This will install the latest, stable release.
+
+
+--
+VER="3.3.23"
+wget https://packages.chef.io/files/stable/chefdk/${VER}/ubuntu/18.04/chefdk_${VER}-1_amd64.deb
+Wait for the download to finish then install the package with dpkg
+
+sudo dpkg -i chefdk_${VER}-1_amd64.deb
+To use the Chef development kit version of Ruby as the default Ruby, you’ll need to edit your $PATH and GEM environment variables to include paths to the Chef development kit.
+
+For Bash use:
+
+echo 'eval "$(chef shell-init bash)"' >> ~/.bash_profile
+bash and ~/.bash_profile represent name of the shell and its configuration file.
+
+If you’re using zsh shell, then run
+
+echo 'eval "$(chef shell-init zsh)"' >> ~/.zshrc
+Source your .rc file and check the ruby location.
+
+source ~/.zshrc
+or 
+source ~/.bash_profile
+Installation of Chef Development Kit will provide the following command line tools:
+
+chef
+chef-apply
+chef-client
+chef-shell
+chef-solo
+chef-vault
+
+--
+Install Chef Workstation from .deb package
+Chef Workstation gives you everything you need to get started with Chef. Start scanning and configuring your environments today with InSpec and chef-run.
+
+
+VER="0.1.162"
+wget https://packages.chef.io/files/stable/chef-workstation/${VER}/ubuntu/18.04/chef-workstation_${VER}-1_amd64.deb
+Install the package:
+
+sudo dpkg -i chef-workstation_${VER}-1_amd64.deb
+Thanks for using our guide to install Chef Workstation / Chef Development Kit.
+
